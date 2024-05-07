@@ -1,0 +1,302 @@
+//file manager
+alias fun_number R1;
+
+
+//buffer_write
+if(fun_number == 1) then
+     
+     alias block_number R2;
+     alias offset R3;
+     alias value R4;
+
+     alias buffer_number R5;
+     buffer_number = block_number%4;
+
+     //acquire bufffer
+     multipush(R1,R2,R3,R4,R5);
+     R1 = 1;
+     R2 = buffer_number;
+     R3 = [SYSTEM_STATUS_TABLE + 1];
+     call MOD_0;                       //resource manager
+     multipop(R1,R2,R3,R4,R5);
+
+
+     alias buffer_entry R6;
+     buffer_entry = BUFFER_TABLE + buffer_number*4;
+
+     if([buffer_entry] != block_number) then
+           
+           if([buffer_entry + 1] == 1) then      //dirty bit 'yessssssss'
+                
+                //disk_store
+                multipush(R1,R2,R3,R4,R5,R6);
+                R1 = 1;
+                R2 = [SYSTEM_STATUS_TABLE + 1];
+                R3 = 71 + buffer_number;
+                R4 = [buffer_entry];
+                call MOD_4;                            //device manager
+                multipop(R1,R2,R3,R4,R5,R6);
+
+                [buffer_entry + 1] = 0;
+
+            endif;
+        
+        //disk_load 
+        multipush(R1,R2,R3,R4,R5,R6);
+        R1 = 2;
+        R4 = block_number;
+        R2 = [SYSTEM_STATUS_TABLE + 1];
+        R3 = 71 + buffer_number;
+        call MOD_4;                            //device manager
+        multipop(R1,R2,R3,R4,R5,R6);
+
+        [buffer_entry] = block_number;
+
+
+    endif;
+
+    [(71 + buffer_number)*512 + offset] = value;
+
+
+    [buffer_entry + 1] = 1;
+
+     //release bufffer
+     multipush(R1,R2,R3,R4,R5);
+     R1 = 2;
+     R2 = buffer_number;
+     R3 = [SYSTEM_STATUS_TABLE + 1];
+     call MOD_0;                       //resource manager
+     multipop(R1,R2,R3,R4,R5);
+
+     return;
+
+endif;
+
+
+//buffer_read
+if(fun_number == 2) then
+     
+     alias block_number R2;
+     alias offset R3;
+     alias address R4;
+
+     alias buffer_number R5;
+     buffer_number = block_number%4;
+
+     //acquire bufffer
+     multipush(R1,R2,R3,R4,R5);
+     R1 = 1;
+     R2 = buffer_number;
+     R3 = [SYSTEM_STATUS_TABLE + 1];
+     call MOD_0;                       //resource manager
+     multipop(R1,R2,R3,R4,R5);
+
+
+     alias buffer_entry R6;
+     buffer_entry = BUFFER_TABLE + buffer_number*4;
+
+     if([buffer_entry] != block_number) then
+           
+           if([buffer_entry + 1] == 1) then      //dirty bit 'yessssssss'
+                
+                //disk_store
+                multipush(R1,R2,R3,R4,R5,R6);
+                R1 = 1;
+                R2 = [SYSTEM_STATUS_TABLE + 1];
+                R3 = 71 + buffer_number;
+                R4 = [buffer_entry];
+                call MOD_4;                            //device manager
+                multipop(R1,R2,R3,R4,R5,R6);
+
+                [buffer_entry + 1] = 0;
+
+            endif;
+        
+        //disk_load 
+        multipush(R1,R2,R3,R4,R5,R6);
+        R1 = 2;
+        R4 = block_number;
+        R2 = [SYSTEM_STATUS_TABLE + 1];
+        R3 = 71 + buffer_number;
+        call MOD_4;                            //device manager
+        multipop(R1,R2,R3,R4,R5,R6);
+
+        [buffer_entry] = block_number;
+
+
+    endif;
+
+    [[PTBR + 2*(address)/512 ]*512 + (address)%512] = [(71 + buffer_number)*512 + offset];
+
+
+     //release bufffer
+     multipush(R1,R2,R3,R4,R5);
+     R1 = 2;
+     R2 = buffer_number;
+     R3 = [SYSTEM_STATUS_TABLE + 1];
+     call MOD_0;                       //resource manager
+     multipop(R1,R2,R3,R4,R5);
+
+     return;
+
+endif;
+
+
+//open
+if(fun_number == 3) then
+    
+    alias file_name R2;
+
+    alias inode_index R3;
+    alias inode_entry R4;
+
+    inode_index = 0;
+
+    while(inode_index < 60) do
+       
+       inode_entry = INODE_TABLE + inode_index*16;
+
+       if([inode_entry + 1] == file_name && [inode_entry] != 3) then 
+           
+           break;
+
+        endif;
+
+        inode_index = inode_index + 1;
+
+    endwhile;
+
+    if(inode_index == 60) then
+        
+        R0 = -1;
+        return;
+
+    endif;
+
+    //acquire inode
+    multipush(R1,R2,R3,R4);
+    R1 = 4;
+    R2 = inode_index;
+    R3 = [SYSTEM_STATUS_TABLE + 1];
+    call MOD_0;
+    multipop(R1,R2,R3,R4);
+
+    //file may replaced or deleted
+    if([inode_entry + 1] != file_name) then
+       
+       R0 = -1;
+       goto open_ret;
+
+    endif;
+    
+    //exec file cannot be opened
+    if([inode_entry] == 3) then
+       
+        R0 = -1;
+        goto open_ret;
+
+    endif;
+
+    alias open_entry R5;
+    alias open_index R6;
+    
+    open_index = 0;
+
+    while(open_index < 32) do
+       
+       open_entry = OPEN_FILE_TABLE + open_index*4;
+
+       if([open_entry] == -1) then
+           
+           break;
+
+        endif;
+       
+       open_index = open_index +1;
+
+    endwhile;
+
+    if(open_index == 32) then
+
+         R0 = -2;
+         goto open_ret;
+
+    endif;
+
+
+    if(file_name == "root" ) then
+         
+         [open_entry] = INODE_ROOT;
+    else 
+         [open_entry] = inode_index;
+
+         if([FILE_STATUS_TABLE + inode_index*4 + 1] == -1) then
+              
+              [FILE_STATUS_TABLE + inode_index*4 + 1] = 1;
+         else
+             
+              [FILE_STATUS_TABLE + inode_index*4 + 1] = [FILE_STATUS_TABLE + inode_index*4 + 1] + 1;
+        endif;
+
+    endif;
+
+    [open_entry + 1 ] = 1;
+    [open_entry + 2] = 0;
+
+    R0 = open_index;
+
+open_ret : 
+
+        //release inode 
+        multipush(R0);
+        R1 = 5;
+        R2 = inode_index;
+        R3 = [SYSTEM_STATUS_TABLE + 1];
+        call MOD_0;
+        multipop(R0);
+        return;
+
+endif;
+
+//close 
+if(fun_number == 4) then
+    
+
+
+    alias open_index R2;
+
+    alias open_entry R3;
+    alias inode_index R4;
+
+    open_entry = OPEN_FILE_TABLE + open_index*4;
+
+    inode_index = [open_entry];
+
+    [open_entry + 1] = [open_entry + 1] -1;
+
+    if([open_entry + 1] == 0) then 
+         
+         [open_entry + 0] = -1;    //inode_index
+         [open_entry + 1] = -1;    //shared count
+         [open_entry + 2] = -1;    //Lseek
+
+         if([INODE_TABLE + inode_index*16 + 1] != "root") then
+                
+                [FILE_STATUS_TABLE + inode_index*4 + 1] = [FILE_STATUS_TABLE + inode_index*4 + 1] -1;
+
+                if([FILE_STATUS_TABLE + inode_index*4 + 1] == 0) then
+                     
+                     [FILE_STATUS_TABLE + inode_index*4 + 1] = -1;
+
+                endif;
+        endif;
+
+    endif;
+
+    return;
+
+endif;
+
+
+    
+  

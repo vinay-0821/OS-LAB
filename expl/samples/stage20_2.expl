@@ -1,0 +1,97 @@
+type 
+
+List {
+
+    int val;
+    List next;
+
+}
+
+
+endtype
+
+
+int main()
+{
+    decl
+        int t,i;
+        List head,p,q;
+    enddecl
+
+    begin
+        
+       t = exposcall("Heapset");
+       head = null;
+
+       i = 1;
+
+      while(i<= 100) do
+
+          p = exposcall("Alloc");
+          p.val = i;
+          p.next = null;
+
+          if(head == null) then
+             
+             head = p;
+             q = head;
+          
+          else 
+              
+            q.next = p;
+            q = q.next;
+
+
+         endif;
+
+         i =i +1;
+      
+      endwhile;
+             
+
+
+
+        t = exposcall("Fork");
+
+
+        if(t==0)  then
+
+           p = head;
+           while(p!= null) do
+              
+              i = p.val;
+              t = exposcall("Write",-2,i);
+
+              if(p.next == null) then
+                 break;
+
+               endif;
+
+              p= p.next.next;
+            
+            endwhile;
+           
+
+        else if(t>0)  then
+           
+           p = head.next;
+           while(p!= null) do
+              
+              i = p.val;
+              t = exposcall("Write",-2,i);
+
+              if(p.next == null) then
+                 break;
+               endif;
+
+              p= p.next.next;
+            
+            endwhile;
+
+            
+
+            endif; endif;
+
+        return 0;
+    end
+}

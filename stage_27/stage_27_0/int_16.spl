@@ -1,0 +1,295 @@
+alias userSP R0;
+userSP = SP;
+
+alias process_entry R1;
+process_entry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+
+[process_entry + 13] = SP;
+SP = [process_entry + 11]*512 - 1;
+
+alias syscall R2;
+syscall = [[PTBR + 2*(userSP -5)/512]*512 + (userSP - 5)%512 ];
+
+
+//newusr
+if(syscall == 22) then
+   
+   [process_entry + 9] = 22;      //mode flag
+
+   if([process_entry + 3] != 1 || [SYSTEM_STATUS_TABLE + 1]!= 2) then
+       
+        R10 = -2;
+        goto ret;
+
+    endif;
+
+   alias user_name R3;
+   alias password R4;
+
+   user_name = [[PTBR + 2*(userSP -4)/512]*512 + (userSP - 4)%512 ];
+   password = [[PTBR + 2*(userSP -3)/512]*512 + (userSP - 3)%512 ];
+   encrypt password;
+
+   alias i R5;
+   alias user_entry R6;
+
+   i = 0;
+
+   while(i < 16) do 
+       
+       user_entry = USER_TABLE + i*2;
+
+       if([user_entry] == user_name) then
+            
+            break;
+
+       endif;
+
+       i = i + 1;
+
+    endwhile;
+
+    if(i != 16) then
+       
+      R10 = -1;
+      goto ret;
+
+    endif;
+
+    i = 0;
+    while(i < 16) do 
+       
+    user_entry = USER_TABLE + i*2;
+
+    if([user_entry] == -1) then
+            
+            break;
+
+    endif;
+
+       i = i + 1;
+
+    endwhile;
+
+    if(i == 16) then
+       
+      R10 = -3;
+      goto ret;
+
+    endif;
+
+    [user_entry] = user_name;
+    [user_entry + 1] = password;
+    R10 = 0;
+    goto ret;
+
+endif;
+
+
+//remusr
+if(syscall == 23 ) then
+
+   [process_entry + 9] =23;
+
+   if([process_entry + 3] != 1 || [SYSTEM_STATUS_TABLE + 1]!= 2) then
+       
+        R10 = -2;
+        goto ret;
+
+    endif;
+
+   alias user_name R3;
+   user_name = [[PTBR + 2*(userSP -4)/512]*512 + (userSP - 4)%512 ];
+
+   if(user_name == "root" || user_name == "kernal" ) then
+       
+       R10 = -2;
+       goto ret;
+
+    endif;
+     
+   alias i R5;
+   alias user_entry R6;
+
+   i = 0;
+   while(i < 16) do 
+
+       user_entry = USER_TABLE + i*2;
+       if([user_entry] == user_name) then 
+
+            break;
+       endif;
+
+       i = i + 1;
+    endwhile;
+
+
+    if(i == 16) then
+       
+      R10 = -1;
+      goto ret;
+
+    endif;
+
+    alias j R7;
+    j = 0;
+    alias root_entry R8;
+
+    while(j<60) do
+       
+       root_entry = ROOT_FILE + j*8;
+
+       if([root_entry + 3] == user_name) then
+           
+           R10 = -3;
+           goto ret;
+
+        endif;
+        
+        j = j+1;
+
+    endwhile;
+
+    [user_entry] = -1;
+    [user_entry + 1] = -1;
+
+    R10 = 0; 
+    goto ret;
+
+endif;
+
+
+//set pwd
+if(syscall == 24) then
+   
+   [process_entry + 9] = 24;     //mode flag
+
+   if([SYSTEM_STATUS_TABLE + 1] != 2) then
+
+       R10 = -1;
+       goto ret;
+
+    endif;
+
+
+   alias user_name R3;
+   alias password R4;
+
+   user_name = [[PTBR + 2*(userSP -4)/512]*512 + (userSP - 4)%512 ];
+   password = [[PTBR + 2*(userSP -3)/512]*512 + (userSP - 3)%512 ];
+   encrypt password;
+
+
+   alias i R5;
+   alias user_entry R6;
+
+   i = 0;
+
+   while(i < 16) do 
+       
+       user_entry = USER_TABLE + i*2;
+
+       if([user_entry] == user_name) then
+            
+            break;
+
+       endif;
+
+       i = i + 1;
+
+    endwhile;
+
+    if(i == 16) then
+       
+      R10 = -2;
+      goto ret;
+
+    endif;
+
+
+    if([process_entry + 3] != i && [process_entry + 3] != 1) then
+       
+       R10 = -1;
+       goto ret;
+
+    endif;
+
+    [user_entry ] = user_name;
+    [user_entry + 1] = password;
+
+    R10 = 0;
+    goto ret;
+
+endif;
+
+
+//getuid
+if(syscall == 26) then
+   
+   [process_entry + 9] =26;
+
+   alias user_name R3;
+   user_name = [[PTBR + 2*(userSP -4)/512]*512 + (userSP - 4)%512 ];
+
+   alias i R4;
+   i = 0;
+   alias user_entry R5;
+   
+   while(i < 16) do
+
+      user_entry = USER_TABLE + i*2;
+
+      if([user_entry] == user_name) then
+         
+         R10 = i;
+         goto ret;
+
+      endif;
+
+      i = i+1;
+
+    endwhile;
+
+    R10 = -1;
+    goto ret;
+
+endif;
+
+
+//getusername
+if(syscall == 25) then
+
+   [process_entry + 9] =25;
+
+
+   alias userid R3;
+   userid = [[PTBR + 2*(userSP -4)/512]*512 + (userSP - 4)%512 ];
+
+   if(0> userid || userid >15) then
+      
+      R10 = -1;
+      goto ret;
+
+    endif;
+
+    alias user_entry R4;
+    user_entry = USER_TABLE + userid*2;
+
+    if([user_entry] == -1) then
+         
+         R10 = -1;
+         goto ret;
+
+    endif;
+
+    R10 = [user_entry];
+    goto ret;
+
+endif;
+
+     
+ret :
+    [[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = R10;
+    [process_entry + 9] = 0;
+    SP = [process_entry + 13];
+    ireturn;

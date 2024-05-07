@@ -1,0 +1,238 @@
+//open and close systemcall
+alias userSP R0;
+userSP = SP;
+
+alias process_entry R1;
+process_entry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+
+[process_entry + 13] = SP;
+
+SP = [process_entry + 11]*512 -1;
+
+alias syscall R2;
+syscall = [[PTBR + 2*(userSP - 5)/512]*512 + (userSP-5)%512];
+
+//open syscall
+if(syscall == 2) then
+
+  
+  [process_entry + 9] = 2;
+
+   alias file_name R3;
+   alias user_page R4;
+   alias RESOURCE_TABLE_ADDRESS R5;
+   alias i R6;
+
+   file_name =  [[PTBR + 2*(userSP - 4)/512]*512 + (userSP-4)%512];
+   user_page = [process_entry + 11];
+   RESOURCE_TABLE_ADDRESS = (user_page + 1)*512 - 16;
+
+
+
+   i = 0;
+   while(i<8) do
+      
+      if([RESOURCE_TABLE_ADDRESS + i*2] == -1) then
+          
+          break;
+
+      endif;
+
+      i = i+1;
+
+    endwhile;
+
+    //Process has reached its limit of resources
+    if(i == 8) then
+       
+      R10 = -3;
+      goto open_ret;
+
+    endif;
+
+
+
+    multipush(R0,R1,R2,R3,R4,R5,R6);
+    R1 = 3;
+    R2 = file_name;
+    call MOD_3;                         //file manager
+    R7 = R0; 
+    multipop(R0,R1,R2,R3,R4,R5,R6);
+
+    alias open_file_entry R7;
+
+
+    //File not found or file is not a data or root file
+    if(open_file_entry == -1) then
+         
+       R10 = -1;
+       goto open_ret;
+    
+    endif;
+    
+
+    // System has reached its limit of open files
+    if(open_file_entry == -2) then
+       
+       R10 = -2;
+       goto open_ret;
+
+    endif;
+
+    [RESOURCE_TABLE_ADDRESS + i*2] = 0;
+    [RESOURCE_TABLE_ADDRESS + i*2 + 1] = open_file_entry;
+
+    
+    R10 = i;
+
+open_ret :
+    
+    [process_entry + 9] =0;
+    [[PTBR + 2*(userSP - 1)/512]*512 + (userSP-1)%512] = R10;
+    SP = [process_entry + 13];
+
+    ireturn;
+     
+endif;
+
+
+//close syscall
+if(syscall == 3) then
+     
+
+     [process_entry + 9] =3;
+
+     alias file_descriptor R3;
+     alias user_page R4;
+     alias RESOURCE_TABLE_ADDRESS R5;
+
+     file_descriptor = [[PTBR + 2*(userSP - 4)/512]*512 + (userSP-4)%512];
+
+     user_page = [process_entry + 11]; 
+
+     RESOURCE_TABLE_ADDRESS = (user_page + 1)*512 - 16;
+
+  
+
+     if([RESOURCE_TABLE_ADDRESS + 2*file_descriptor] != 0) then
+         
+           R10 = -1;
+           goto close_ret; 
+
+    endif;
+
+
+    multipush(R0,R1,R2,R3,R4,R5);
+    R1 = 4;
+    R2 = [RESOURCE_TABLE_ADDRESS + 2*file_descriptor + 1];
+    call MOD_3;
+    multipop(R0,R1,R2,R3,R4,R5);
+
+
+
+
+    [RESOURCE_TABLE_ADDRESS + 2*file_descriptor] = -1;
+    [RESOURCE_TABLE_ADDRESS + 2*file_descriptor + 1] = -1;
+
+
+    R10 = 0;
+
+close_ret:
+           
+    
+           [process_entry + 9] = 0;
+           [[PTBR + 2*(userSP - 1)/512]*512 + (userSP-1)%512] = R10;
+           SP = [process_entry + 13];
+
+           ireturn;
+    
+endif;
+
+
+//seek 
+if(syscall == 6) then
+    
+
+    alias file_descriptor R3;
+    alias offset R4;
+
+    file_descriptor = [[PTBR + 2*(userSP - 4)/512]*512 + (userSP-4)%512];
+
+    offset = [[PTBR + 2*(userSP - 3)/512]*512 + (userSP-3)%512];
+
+    alias RESOURCE_TABLE_ADDRESS R5;
+    RESOURCE_TABLE_ADDRESS = ([process_entry + 11] + 1)*512 - 16;
+
+    if([RESOURCE_TABLE_ADDRESS + 2*file_descriptor] != 0) then
+         
+            R11 = -1;
+            goto seek_ret;
+    endif;
+        
+    alias open_index R6;
+    open_index = [RESOURCE_TABLE_ADDRESS + 2*file_descriptor + 1];
+
+    alias open_entry R7;
+    open_entry = OPEN_FILE_TABLE + open_index*4;
+
+    alias inode_index R8;
+    inode_index = [open_entry];
+
+    alias inode_entry R9;
+    inode_entry = INODE_TABLE + inode_index*16;
+
+    alias lseek R10;
+    lseek = [open_entry + 2];
+
+    lseek = lseek + offset;
+
+    if(offset == 0) then
+       
+       R11 = 0;
+       [open_entry + 2] = 0;
+       goto seek_ret;
+
+    endif;
+
+    if(lseek < 0) then
+        
+        R11 = -2;
+        goto seek_ret;
+
+    endif;
+
+    if(lseek >= [inode_entry + 2]) then
+          
+          R11 = -2;
+          [open_entry + 2] = [inode_entry + 2];
+          goto seek_ret;
+
+    endif;
+
+    [open_entry + 2] = lseek;
+    R11 = 0;
+
+    seek_ret :
+           
+ 
+           [process_entry + 9] =0;
+           [[PTBR + 2*(userSP - 1)/512]*512 + (userSP-1)%512] = R11;
+           SP = [process_entry + 13];
+
+           ireturn;
+
+    
+endif;
+
+
+
+
+
+
+
+
+
+
+
+
+   

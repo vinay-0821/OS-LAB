@@ -1,0 +1,50 @@
+alias userSP R0;
+userSP = SP;
+
+alias process_entry R1;
+process_entry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+
+[process_entry + 13] = SP;
+SP = [process_entry + 11]*512 - 1;
+
+alias syscall R2;
+syscall = [[PTBR + 2*(userSP -5)/512]*512 + (userSP - 5)%512 ];
+
+
+//logout
+if(syscall == 28) then
+    
+
+
+
+    [process_entry + 9] = 28;
+
+    if([SYSTEM_STATUS_TABLE + 1] != 2) then
+        
+            [[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = -1;  //success
+            [process_entry + 9] = 0;
+            SP = [process_entry + 13];
+    endif;
+
+    multipush(R0,R1,R2);
+    R1 = 5;
+    R2 = 2;
+    call MOD_1;
+    multipop(R0,R1,R2);
+
+    [process_entry + 4] = TERMINATED;
+    
+    [[PTBR + 16]*512] = [[PTBR + 8]*512 + 1];
+    [process_entry + 13] = 4096;
+
+   
+   [PROCESS_TABLE + 20] = READY;
+
+   [SYSTEM_STATUS_TABLE] = 0;        
+
+
+   multipush(R0,R1,R2);
+   call MOD_5;
+   multipop(R0,R1,R2);
+
+endif;

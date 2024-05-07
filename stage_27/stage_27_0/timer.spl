@@ -1,0 +1,96 @@
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE+1]*16) + 13] = SP;
+SP=[PROCESS_TABLE +([SYSTEM_STATUS_TABLE+1]*16) +11]*512 -1;
+backup;
+
+alias paging_status R0;
+paging_status = SYSTEM_STATUS_TABLE + 5;
+
+alias currentPID R1;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+
+alias process_entry R2;
+process_entry = PROCESS_TABLE + currentPID*16;
+
+
+if([paging_status] != 0) then
+
+    if([paging_status] == SWAP_OUT && currentPID == 15) then
+    
+        //call page_ module
+        multipush(R0,R1,R2);
+        R1 = 1;
+        R2 = [SYSTEM_STATUS_TABLE + 1];
+        call MOD_6;
+        multipop(R0,R1,R2);
+
+    else if([paging_status] == SWAP_IN && currentPID == 15) then
+        
+        //call page_module
+        multipush(R0,R1,R2);
+        R1 = 2;
+        R2 = [SYSTEM_STATUS_TABLE + 1];
+        call MOD_6;
+        multipop(R0,R1,R2);
+    
+
+    endif;
+    endif;
+        
+else 
+
+      
+    if([SYSTEM_STATUS_TABLE + 2] < MEM_LOW)  then
+         
+
+         [SYSTEM_STATUS_TABLE + 5] = SWAP_OUT;
+
+    else
+         
+        if([SYSTEM_STATUS_TABLE + 4] > 0) then    //swapped process count
+            
+
+            alias i R3;
+            alias proc_entry R4;
+
+            i = 0;
+            while(i < 15) do
+
+               proc_entry = PROCESS_TABLE + i*16;
+               if(([proc_entry + 6] == 1 && [proc_entry] > MAX_TICK) || [SYSTEM_STATUS_TABLE + 2] > MEM_HIGH) then
+                     
+            
+                     [SYSTEM_STATUS_TABLE + 5] = SWAP_IN;
+                     break;
+
+                endif;
+
+                i = i + 1;
+
+            endwhile; 
+
+        endif;
+
+    endif;
+
+
+
+endif;
+
+
+[process_entry + 4]=READY;
+
+alias i R3;
+i = 0;
+while(i < 16) do
+   
+   [PROCESS_TABLE + i*16] = [PROCESS_TABLE + i*16] + 1;
+   i = i+1;
+
+endwhile;
+    
+
+
+call MOD_5;
+restore;
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE+1]*16) + 13];
+ireturn;

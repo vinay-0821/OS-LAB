@@ -1,0 +1,36 @@
+int main()
+{
+    decl
+     
+     int t,fd1,fd2,a1,a2,value;
+     str file1,file2;
+    
+    enddecl
+
+    begin
+       
+       t = exposcall("Write",-2,"file-1 :");
+       t = exposcall("Read",-1,file1);
+       t = exposcall("Write",-2,"file-2 :");
+       t = exposcall("Read",-1,file2);
+
+       t = exposcall("Create",file2,0);
+       fd1 = exposcall("Open",file1);
+       fd2 = exposcall("Open",file2);
+
+       while(a1 != -2 ) do
+
+           a1 = exposcall("Read",fd1,value);
+           a2 = exposcall("Write",fd2,value);
+
+        endwhile;
+
+
+       t = exposcall("Close",fd1);
+       t = exposcall("Close",fd2);
+
+       return 0;
+
+    end
+
+}

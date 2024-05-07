@@ -1,0 +1,17 @@
+int main()
+{
+decl 
+int a,b,t1,t2,t3,r;
+enddecl
+begin
+t1=exposcall("Read",-1,a);
+t2=exposcall("Read",-1,b);
+while(b>0)do
+r=a%b;
+a=b;
+b=r;
+endwhile;
+t3=exposcall("Write",-2,a);
+return 0;
+end
+}

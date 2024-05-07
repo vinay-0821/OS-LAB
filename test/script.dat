@@ -1,0 +1,11 @@
+load --exec ../test/pgm1.xsm
+load --exec ../test/pgm2.xsm
+load --exec ../test/pid.xsm
+load --exec ../test/test_8.xsm
+load --exec ../test/test_9.xsm
+load --exec ../test/test_11.xsm
+load --exec ../test/merge.xsm
+load --exec ../test/m_store.xsm
+load --exec ../test/m_merge.xsm
+load --exec ../test/m_sort.xsm
+load --exec ../test/assg_1.xsm

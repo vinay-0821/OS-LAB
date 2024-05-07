@@ -1,0 +1,31 @@
+load --os $HOME/myexpos/stage_27/stage_27_0/os_startup.xsm
+load --exhandler $HOME/myexpos/stage_27/stage_27_0/exception.xsm
+load --int=timer $HOME/myexpos/stage_27/stage_27_0/timer.xsm
+load --int=console $HOME/myexpos/stage_27/stage_27_0/console.xsm
+load --int=disk $HOME/myexpos/stage_27/stage_27_0/disk.xsm
+load --init $HOME/myexpos/stage_27/stage_27_0/init.xsm
+load --idle $HOME/myexpos/stage_27/stage_27_0/idle.xsm
+load --shell $HOME/myexpos/stage_27/stage_27_0/shell.xsm
+load --int=4 $HOME/myexpos/stage_27/stage_27_0/int_4.xsm
+load --int=5 $HOME/myexpos/stage_27/stage_27_0/int_5.xsm
+load --int=6 $HOME/myexpos/stage_27/stage_27_0/int_6.xsm
+load --int=7 $HOME/myexpos/stage_27/stage_27_0/int_7.xsm
+load --int=8 $HOME/myexpos/stage_27/stage_27_0/int_8.xsm
+load --int=9 $HOME/myexpos/stage_27/stage_27_0/int_9.xsm
+load --int=10 $HOME/myexpos/stage_27/stage_27_0/exit.xsm
+load --int=11 $HOME/myexpos/stage_27/stage_27_0/int_11.xsm
+load --int=12 $HOME/myexpos/stage_27/stage_27_0/int_12.xsm
+load --int=13 $HOME/myexpos/stage_27/stage_27_0/int_13.xsm
+load --int=14 $HOME/myexpos/stage_27/stage_27_0/int_14.xsm
+load --int=15 $HOME/myexpos/stage_27/stage_27_0/int_15.xsm
+load --int=16 $HOME/myexpos/stage_27/stage_27_0/int_16.xsm
+load --int=17 $HOME/myexpos/stage_27/stage_27_0/int_17.xsm
+load --module 0 $HOME/myexpos/stage_27/stage_27_0/mod_0.xsm
+load --module 1 $HOME/myexpos/stage_27/stage_27_0/mod_1.xsm
+load --module 2 $HOME/myexpos/stage_27/stage_27_0/mod_2.xsm
+load --module 3 $HOME/myexpos/stage_27/stage_27_0/mod_3.xsm
+load --module 4 $HOME/myexpos/stage_27/stage_27_0/mod_4.xsm
+load --module 5 $HOME/myexpos/stage_27/stage_27_0/mod_5.xsm
+load --module 6 $HOME/myexpos/stage_27/stage_27_0/mod_6.xsm
+load --module 7 $HOME/myexpos/stage_27/stage_27_0/mod_7.xsm
+load --library $HOME/myexpos/expl/library.lib

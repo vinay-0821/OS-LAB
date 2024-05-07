@@ -1,0 +1,40 @@
+int main()
+{
+    decl
+        int t,x;
+
+        str uname;
+        str pass;
+    enddecl
+
+    begin
+        
+        while(1==1) do
+            
+            t = exposcall("Write",-2,"--uname--");
+            t = exposcall("Read",-1,uname);
+            t = exposcall("Write",-2,"--pass--");
+            t = exposcall("Read",-1,pass);
+
+            t = exposcall("Login",uname,pass);
+
+            if(t == -1) then
+            
+            x =  exposcall("Write",-2,"wrong cred");
+
+            endif;
+
+            if(t == -2) then
+            
+            x = exposcall("Write",-2,"perm denied");
+            
+            endif;
+           
+           
+        endwhile;
+
+        return 0;
+
+            
+    end
+}

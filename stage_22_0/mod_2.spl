@@ -1,0 +1,170 @@
+//memory manager
+
+alias fun_num R1;
+
+
+//get free page 
+if (fun_num == 1) then 
+
+    alias page_num  R2;
+
+    [SYSTEM_STATUS_TABLE + 3] =[SYSTEM_STATUS_TABLE + 3]+1;
+
+    while([SYSTEM_STATUS_TABLE + 2] == 0)  do
+
+        [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE +1]*16) + 4] = WAIT_MEM;
+
+        multipush(R1,R2);
+        call MOD_5;
+        multipop(R1,R2);
+
+    endwhile;
+
+    [SYSTEM_STATUS_TABLE + 2] =[SYSTEM_STATUS_TABLE + 2]-1;
+    [SYSTEM_STATUS_TABLE + 3] =[SYSTEM_STATUS_TABLE + 3]-1;
+
+    alias i R3;
+    i=0;
+    
+    while(i<128) do
+
+        if([MEMORY_FREE_LIST + i] == 0 ) then 
+
+           [MEMORY_FREE_LIST + i] = 1;
+            R0 =i;
+            break;
+
+        endif;
+
+    i=i+1;
+
+    endwhile;
+
+    return;
+
+endif;
+
+
+
+//release page_num
+if(fun_num == 2) then 
+
+    [MEMORY_FREE_LIST + R2] =  [MEMORY_FREE_LIST + R2] -1;
+
+    if([MEMORY_FREE_LIST + R2]==0)  then
+
+        [SYSTEM_STATUS_TABLE + 2] =[SYSTEM_STATUS_TABLE + 2]+1;
+
+
+        alias i R3;
+        i = 0;
+
+        while(i<16)  do 
+
+            if([PROCESS_TABLE + i*16 + 4] ==WAIT_MEM) then
+
+                [PROCESS_TABLE + i*16 + 4] = READY;
+
+            endif;
+
+        i= i+1;
+
+         endwhile;
+
+    endif;
+
+return;
+
+endif;
+
+
+
+//release block
+ if(fun_num == 4) then
+   
+   alias block_number R2;
+   alias PID  R3;
+
+   [DISK_MAP_TABLE + block_number ]= [DISK_MAP_TABLE + block_number] - 1;
+   
+   return;
+
+endif;
+
+
+//get free code page 
+if(fun_num == 5) then
+   
+   alias block_number R2;
+   alias i R3;
+   alias j R4;
+   i = 0;
+
+   while(i<16) do  //i process number
+     
+     j = 2;
+     while (j< 10) do   // j = page number 
+        
+        if([DISK_MAP_TABLE + i*10 + j] == R2 ) then
+            
+            R5 = [PAGE_TABLE_BASE + i*20 + j*2 + 1];
+            if(R5=="0100" || R5 =="1100" || R5 =="0110" || R5 =="1110" || R5 =="0101" || R5 =="1101" || R5 =="0111" || R5 =="1111") then
+                
+                // print "happy";
+                alias page_num R0;
+                page_num = [PAGE_TABLE_BASE + i*20 + j*2];
+                [MEMORY_FREE_LIST + page_num] = [MEMORY_FREE_LIST + page_num] + 1;
+                return;
+
+            endif;
+
+        endif;
+
+        j= j+1;
+    
+     endwhile;
+
+     i = i+1;
+
+    endwhile;
+
+
+    //get free page 
+    
+    multipush(R1,R2);
+    R1 = 1;
+    call MOD_2;
+    multipop(R1,R2);
+
+    //print R0;
+
+    alias page_num R0;
+
+    //disk_load
+    multipush(R0,R1,R2);
+    R1 = 2;
+    R3 = R0;                        //page number
+    R4 = R2;                        //block number
+    R2 = [SYSTEM_STATUS_TABLE + 1]; //current PID
+    call MOD_4;
+    multipop(R0,R1,R2);
+
+    return;
+
+ endif;
+
+
+
+
+
+
+
+
+
+
+                  
+           
+           
+     
+  
+   

@@ -1,0 +1,99 @@
+alias userSP R0;
+userSP = SP;
+
+alias process_entry R1;
+process_entry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE+ 1]*16;
+
+[process_entry + 13] = SP;
+SP = [process_entry + 11]*512 -1;
+
+
+//mode change
+[process_entry + 9] = 15;
+
+
+if([SYSTEM_STATUS_TABLE + 1]!= 1 || [process_entry + 3] != 1) then
+    
+       [process_entry + 9] = 0;
+       [[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = -1;
+       SP = [process_entry + 13];
+       ireturn;
+
+endif;
+
+
+
+//kill all
+multipush(R0,R1);
+R1 = 5;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+call MOD_1;
+multipop(R0,R1);
+
+alias i R2;
+alias buffer_entry R3;
+
+i = 0;
+while(i < 4) do
+   
+   buffer_entry = BUFFER_TABLE + i*4;
+   
+   if([buffer_entry] != -1 && [buffer_entry + 1] == 1) then
+       
+
+               //disk_store
+              multipush(R1,R2,R3,R4,R5,R6);
+              R1 = 1;
+              R4 = [buffer_entry];
+              R3 = 71 + i;
+              R2 = [SYSTEM_STATUS_TABLE + 1];
+              call MOD_4;                            //device manager
+              multipop(R1,R2,R3,R4,R5,R6);
+
+              [buffer_entry + 1] = 0;
+    endif;
+
+    i =i +1;
+
+endwhile;
+       
+
+//disk free list
+multipush(R0,R1);
+R1 = 1;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+R3 = 61;
+R4 = 2;
+call MOD_4;
+multipop(R0,R1);
+
+//inode table
+multipush(R0,R1);
+R1 = 1;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+R3 = 59;
+R4 = 3;
+call MOD_4;
+multipop(R0,R1);
+
+multipush(R0,R1);
+R1 = 1;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+R3 = 60;
+R4 = 4;
+call MOD_4;
+multipop(R0,R1);
+
+
+//root file
+multipush(R0,R1);
+R1 = 1;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+R3 = 62;
+R4 = 5;
+call MOD_4;
+multipop(R0,R1);
+
+halt;
+
+

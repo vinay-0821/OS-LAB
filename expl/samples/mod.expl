@@ -1,0 +1,17 @@
+int main()
+{
+decl
+int num,temp,prev,f;
+enddecl
+begin
+num=1;
+prev=1;
+while(num<=5)do
+f=prev*num;
+prev=f;
+temp=exposcall("Write",-2,f);
+num=num+1;
+endwhile;
+return 0;
+end
+}

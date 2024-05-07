@@ -1,0 +1,95 @@
+alias userSP R0;
+userSP = SP;
+
+alias process_entry R1;
+process_entry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+
+[process_entry + 13] = SP;
+SP = [process_entry + 11]*512 - 1;
+
+alias syscall R2;
+syscall = [[PTBR + 2*(userSP -5)/512]*512 + (userSP - 5)%512 ];
+
+//login
+if(syscall == 27) then
+   
+   [process_entry + 9] = 27;      //mode flag
+
+   if([SYSTEM_STATUS_TABLE + 1] != 1) then    //not login/init program
+          
+       [[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = -2;  //permission denied
+       [process_entry + 9] = 0;
+       SP = [process_entry + 13];
+       ireturn;
+
+   endif;
+
+   alias user_name R3;
+   alias password R4;
+
+   user_name = [[PTBR + 2*(userSP -4)/512]*512 + (userSP - 4)%512 ];
+   password = [[PTBR + 2*(userSP -3)/512]*512 + (userSP - 3)%512 ];
+   encrypt password;
+
+   alias i R5;
+   alias user_entry R6;
+
+   i = 0;
+
+   while(i < 16) do 
+       
+       user_entry = USER_TABLE + i*2;
+
+       if([user_entry] == user_name && [user_entry + 1] == password) then
+            
+            break;
+       endif;
+
+       i = i + 1;
+
+    endwhile;
+
+
+    if(i == 16) then
+        
+       [[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = -1;  //user not found
+       [process_entry + 9] = 0;
+       SP = [process_entry + 13];
+       ireturn;
+
+    endif;
+
+    [PROCESS_TABLE + 36] = CREATED;       //state
+    [PROCESS_TABLE + 35] = i;            //userid
+    [PROCESS_TABLE + 34] = 1;            //ppid
+
+    [process_entry + 4] = WAIT_PROCESS;
+    [process_entry + 5] = 2;
+
+    [SYSTEM_STATUS_TABLE] = i;
+
+
+    multipush(R0,R1,R2,R3,R4,R5,R6);
+    call MOD_5;
+    multipop(R0,R1,R2,R3,R4,R5,R6);
+
+    [[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = 0;  //success
+    [process_entry + 9] = 0;
+    SP = [process_entry + 13];
+    ireturn;
+
+endif;
+
+
+
+
+
+
+
+
+
+
+       
+
+
+   

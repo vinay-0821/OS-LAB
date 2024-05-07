@@ -1,0 +1,6 @@
+load --exec ../stage_26/stage_26_0/rm.xsm
+load --exec ../stage_26/stage_26_0/cp.xsm
+load --exec ../stage_26/stage_26_0/cat.xsm
+load --exec ../stage_26/stage_26_0/ls.xsm
+load --exec ../stage_26/stage_26_0/lu.xsm
+load --exec ../stage_26/stage_26_0/ru.xsm

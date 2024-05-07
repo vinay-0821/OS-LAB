@@ -1,0 +1,33 @@
+int main()
+{
+
+    decl 
+      
+      int t,fd,a,i,value;
+      str name,file;
+
+    enddecl
+
+
+    begin 
+         
+
+        t = exposcall("Open","s.xsm");
+        
+        t = exposcall("Seek",fd,1099);
+
+        i = 1;
+        while(i<= 1100) do
+           
+           a = exposcall("Read",fd,value);
+           t = exposcall("Write",-2,value);
+           t = exposcall("Seek",fd,-2);
+           i = i+1;
+
+        endwhile;
+           
+
+    return 0;
+
+    end
+}

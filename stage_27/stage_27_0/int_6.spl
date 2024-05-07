@@ -1,0 +1,164 @@
+alias userSP R0;
+alias process_entry R1;
+
+userSP = SP;
+process_entry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16;
+
+[process_entry + 13] = SP;
+SP = [process_entry + 11]*512 -1;
+
+alias file_descriptor R2;
+alias address R3;
+address = [[PTBR + 2*(userSP-3)/512]*512 + ((userSP-3)%512)];
+file_descriptor = [[PTBR + 2*(userSP-4)/512]*512 + ((userSP-4)%512)];
+
+if(file_descriptor != -1) then
+    
+    goto read_file;
+
+endif;
+
+
+multipush(R0,R1,R2,R3);
+R1 = 4;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+R3 = address;
+call MOD_4;
+multipop(R0,R1,R2,R3);
+
+[[PTBR + 2*(userSP-1)/512]*512 + ((userSP-1)%512)] = 0;
+[process_entry + 9] = 0;
+SP = [process_entry + 13];
+ireturn;
+
+
+read_file :
+
+
+
+if(!(0<= file_descriptor && file_descriptor <8)) then
+     
+     [[PTBR + 2*(userSP-1)/512]*512 + ((userSP-1)%512)] = -1;
+     [process_entry + 9] = 0;
+     SP = [process_entry + 13];
+     ireturn;
+
+endif;
+
+alias RESOURCE_TABLE_ADDRESS R4;
+RESOURCE_TABLE_ADDRESS = ([process_entry + 11] + 1)*512 - 16;
+
+alias open_index R5;
+open_index = [RESOURCE_TABLE_ADDRESS + file_descriptor*2 + 1];
+
+alias open_entry R6;
+open_entry = OPEN_FILE_TABLE + open_index*4;
+
+alias inode_index R7;
+inode_index = [open_entry];
+
+alias inode_entry R8;
+inode_entry = INODE_TABLE + inode_index*16; 
+
+
+//acquire inode
+multipush(R0,R1,R2,R3,R4,R5,R6,R7,R8);
+R1 = 4;
+R2 = inode_index;
+R3 = [SYSTEM_STATUS_TABLE + 1];
+call MOD_0;
+multipop(R0,R1,R2,R3,R4,R5,R6,R7,R8);
+
+
+alias lseek R9;
+lseek = [open_entry + 2];
+
+if(inode_index == INODE_ROOT) then
+     
+     if(lseek >= 480) then
+         
+         //release inode 
+         multipush(R0,R1);
+         R1 = 5;
+         R2 = inode_index;
+         R3 = [SYSTEM_STATUS_TABLE + 1];
+         call MOD_0;
+         multipop(R0,R1);
+        
+        [[PTBR + 2*(userSP-1)/512]*512 + ((userSP-1)%512)] = -2;
+        [process_entry + 9] = 0;
+        SP = [process_entry + 13];
+        ireturn;
+
+     endif;
+
+     [[PTBR + 2*(address/512)]*512 + address%512]=[ROOT_FILE + lseek];
+     [open_entry + 2] = lseek + 1;
+
+else 
+   
+   if(lseek >= [inode_entry + 2]) then
+        
+
+        //release inode 
+         multipush(R0,R1);
+         R1 = 5;
+         R2 = inode_index;
+         R3 = [SYSTEM_STATUS_TABLE + 1];
+         call MOD_0;
+         multipop(R0,R1);
+
+        [[PTBR + 2*(userSP-1)/512]*512 + ((userSP-1)%512)] = -2;
+        [process_entry + 9] = 0;
+        SP = [process_entry + 13];
+        ireturn;
+
+    endif;
+
+    
+ 
+
+    //call_buffer_read
+    alias block_number R10;
+
+    block_number = [inode_entry + 8 + lseek/512];
+    multipush(R0,R1,R2,R3,R4,R5,R6,R7,R8,R9);
+    R1 = 2;
+    R2 = block_number;
+    R4 = address;
+    R3 = lseek%512;
+    call MOD_3;
+    multipop(R0,R1,R2,R3,R4,R5,R6,R7,R8,R9);
+
+    [open_entry + 2] = [open_entry + 2] +1;
+
+endif;
+
+
+//release inode 
+multipush(R0,R1);
+R1 = 5;
+R2 = inode_index;
+R3 = [SYSTEM_STATUS_TABLE + 1];
+call MOD_0;
+multipop(R0,R1);
+
+[[PTBR + 2*(userSP-1)/512]*512 + ((userSP-1)%512)] = 0;
+[process_entry + 9] = 0;
+SP = [process_entry + 13];
+ireturn;
+
+
+
+
+
+
+
+
+
+
+
+     
+
+     
+      

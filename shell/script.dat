@@ -1,0 +1,6 @@
+load --exec ../shell/rm.xsm
+load --exec ../shell/cp.xsm
+load --exec ../shell/cat.xsm
+load --exec ../shell/ls.xsm
+load --exec ../shell/lu.xsm
+load --exec ../shell/ru.xsm

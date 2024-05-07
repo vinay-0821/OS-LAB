@@ -1,0 +1,49 @@
+int main()
+{
+    decl 
+      
+      int t,fd,a,fname;
+      str uname,user;
+
+    enddecl
+
+
+    begin 
+        
+        t = exposcall("Read",-1,user);
+
+        fd=exposcall("Open","root");
+        while(a != -2) do
+             
+             a = exposcall("Read",fd, fname);
+
+
+             if(fname !=  -1) then
+                 
+
+                 a = exposcall("Seek",fd,2);
+                 a = exposcall("Read",fd,uname);
+
+
+                    if(uname == user) then
+                       
+                        t = exposcall("Delete",fname);
+
+                    endif;
+
+                a = exposcall("Seek",fd,4);
+
+              else 
+               
+                 a = exposcall("Seek",fd,7);
+
+              endif;
+
+        endwhile;
+
+        t = exposcall("Close",fd);
+
+    return 0;
+
+    end
+}

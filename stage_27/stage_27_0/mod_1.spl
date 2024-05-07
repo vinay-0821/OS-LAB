@@ -1,0 +1,304 @@
+//process manager
+
+alias fun_num R1;
+
+
+// get free pcb entry
+if(fun_num == 1) then
+   
+   alias i R0;
+   alias process_entry R2;
+   i = 0;
+   
+
+   while(i < 16) do
+        
+        process_entry = PROCESS_TABLE + i*16;
+        
+        if([process_entry + 4] == TERMINATED) then
+              
+             [process_entry + 1] = i;
+             [process_entry + 4] = ALLOCATED;
+             [process_entry + 14] = PAGE_TABLE_BASE + i*20;
+             [process_entry + 15] = 10;
+             return;
+
+        endif;
+
+        i = i+1;
+    
+    endwhile;
+
+    i = -1;
+    return;
+
+
+endif;
+             
+//free user page
+if(fun_num == 2)  then
+
+    alias PID R2;
+
+    alias user_page R3;
+
+    user_page = [PROCESS_TABLE + PID*16 + 11];
+
+    multipush(R1,R2,R3);
+
+    R1 = 2;
+    R2 = user_page;
+
+    call MOD_2;
+
+    multipop(R1,R2,R3);
+
+    //invalid resource table 
+    alias RESOURCE_TABLE_ADDRESS R4;
+
+    RESOURCE_TABLE_ADDRESS = ((user_page+1)*512)-16;
+
+    alias itr R5;
+    itr = 0;
+
+    while (itr < 8) do
+
+        if([RESOURCE_TABLE_ADDRESS + itr*2] == 1) then  //semaphore
+           
+            multipush(R1,R2,R3,R4,R5);
+            R1 = 7;
+            R3 = PID;
+            R2 = [RESOURCE_TABLE_ADDRESS + itr*2 + 1];
+            call MOD_0;
+            multipop(R1,R2,R3,R4,R5);
+
+        endif;
+
+        if([RESOURCE_TABLE_ADDRESS + itr*2] == 0) then     //file
+
+             multipush(R1,R2,R3,R4,R5);
+             R1 = 4;
+             R2 = [RESOURCE_TABLE_ADDRESS + itr*2 + 1];
+             call MOD_3;
+             multipop(R1,R2,R3,R4,R5);
+
+
+        endif;
+        
+        itr = itr + 1;
+
+    endwhile;
+
+
+
+    return;
+
+    
+
+endif;
+
+
+//exit process
+if(fun_num == 3)  then 
+
+
+
+    alias PID R2;  
+
+    //free user page
+    multipush(R1,R2);
+    R1 = 2;
+    call MOD_1;
+    multipop(R1,R2);
+
+
+
+
+    //free page_table
+    multipush(R1,R2);
+    R1 = 4;
+    call MOD_1;
+    multipop(R1,R2);
+
+
+
+    alias process_entry R3;
+
+    if([PROCESS_TABLE + PID*16 + 9] != 9) then
+       
+       alias i R1;
+       i = 0;
+       while(i<16) do
+           
+           process_entry = PROCESS_TABLE + i*16;
+           
+           if([process_entry + 2] == PID) then
+               
+               [process_entry + 2] = -1;
+
+            endif;
+
+            if([process_entry + 4] == WAIT_PROCESS && [process_entry + 5] == PID) then
+               
+               [process_entry + 4] = READY;
+
+            endif;
+        
+        i = i +1;
+        
+        endwhile;
+
+    endif;
+    
+    [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE +1]*16) + 4] = TERMINATED;
+     
+
+    return;
+    
+
+endif;
+
+
+//free pagetable
+if(fun_num == 4)  then 
+
+    alias PID R2;
+
+
+    alias page_entry R3;
+    page_entry = PAGE_TABLE_BASE + PID*20;
+
+    [page_entry + 0] = -1;
+    [page_entry + 1] = "0000";
+    [page_entry + 2] = -1;
+    [page_entry + 3] = "0000";
+
+    alias i R4;
+    i=4;
+
+    while(i<20)  do
+
+        if([page_entry + i]!= -1)  then
+
+            multipush(R1,R2,R3,R4);
+
+            R1 = 2;
+            R2 = [page_entry + i];
+            call MOD_2;
+
+            multipop(R1,R2,R3,R4);
+
+            [page_entry + i] = -1;
+            [page_entry + i+1] ="0000";
+
+        endif;
+
+    i = i+2;
+
+    endwhile;
+    
+    alias block_num R4;
+    alias disk_map_entry R5;
+    disk_map_entry = DISK_MAP_TABLE + PID*10;
+    alias j R6;
+    j = 2;
+    
+    //stack and heap blocks are released
+    while(j!= 10) do
+       
+        block_num = [disk_map_entry + j];
+        if(block_num != -1) then
+            
+            [disk_map_entry + j] = -1;
+            multipush(R1,R2,R3,R5,R6);
+            R1 = 4;
+            R3 = R2;
+            R2 = R4;
+            call MOD_2;
+            multipop(R1,R2,R3,R5,R6);
+
+        endif;
+
+        j = j+1;
+        
+        if(j == 4) then
+             j = 8;
+        endif;
+
+    endwhile;
+
+    return;
+
+endif;
+
+//kill all
+if(fun_num == 5) then
+
+alias PID R2;
+
+alias i R4;
+alias inode_entry R3;
+i =0;
+
+while(i<60) do
+    
+    inode_entry = INODE_TABLE + i*16;
+    if([inode_entry+1] != -1) then            //acquire inode
+        
+        multipush(R1,R2,R3,R4);
+        R1 = 4;
+        R3 = PID;
+        R2 = i;
+        call MOD_0;
+        multipop(R1,R2,R3,R4);
+    
+    endif;
+
+i = i+1;
+
+endwhile;
+
+
+i = 2;
+while(i<16) do
+   
+
+   
+   if(i!= PID && [PROCESS_TABLE + i*16 + 4] != TERMINATED) then
+       
+       multipush(R1,R2,R3,R4);
+       R1 = 3;
+       R2 = i;
+       call MOD_1;
+       multipop(R1,R2,R3,R4);
+
+    endif;
+
+    i = i +1;
+
+endwhile;
+
+
+i =0;
+while(i<60) do
+    
+    inode_entry = INODE_TABLE + i*16;
+    if([inode_entry+1] != -1) then
+        
+        multipush(R1,R2,R3,R4);
+        R1 = 5;
+        R3 = PID;
+        R2 = i;
+        call MOD_0;
+        multipop(R1,R2,R3,R4);
+    
+    endif;
+
+i = i+1;
+
+endwhile;
+
+
+return;
+
+endif;

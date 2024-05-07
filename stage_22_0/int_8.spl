@@ -1,0 +1,240 @@
+//fork system_call INT 8
+//no arguments
+
+
+
+alias user_SP R0;
+alias child_pid R1;
+alias j R7;
+alias i R8;
+
+R0 = SP;
+
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 - 1;
+
+//mode change
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9 ] = 8;
+
+
+//get free pcb entry
+multipush(R0);
+R1 = 1;
+call MOD_1;
+child_pid = R0;
+multipop(R0);
+
+
+if(child_pid == -1) then
+
+     [[PTBR + 2*(user_SP - 1)/512]*512 + (user_SP-1)%512] = -1;  //return_value
+     [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9 ] = 0;
+     SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
+     ireturn ;
+     
+endif;
+
+
+
+//if heap page is not assigned
+
+i = 4;
+while (i<=6) do
+
+     if([PTBR + i] == -1)  then
+          
+          multipush(R0,R1,R8);
+          R1 = 1;
+          call MOD_2;
+          R5 = R0;
+          multipop(R0,R1,R8);
+          
+          [PTBR + i] = R5;
+          [PTBR + i + 1] = "0110";
+
+     endif;
+
+     i = i+2;
+endwhile;
+
+
+
+
+alias child_pcb R2;
+alias parent_pcb R3;
+//setting process table for child process
+
+
+
+child_pcb = PROCESS_TABLE + child_pid*16;
+parent_pcb = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+
+[child_pcb + 4] = [parent_pcb + 4];         //userpid
+[child_pcb + 6] = [parent_pcb + 6];         //swap flag
+[child_pcb + 7] = [parent_pcb + 7];         //inode index
+[child_pcb + 10] = [parent_pcb + 10];       //user area swap status
+[child_pcb + 13] = [parent_pcb + 13];       //UPTR
+
+
+[child_pcb + 2] = [SYSTEM_STATUS_TABLE + 1];    // PPID
+
+[child_pcb + 9] = 0;                            //mode
+
+multipush(R0,R1,R2,R3);
+R1 = 1;
+call MOD_2;
+R5 = R0;
+multipop(R0,R1,R2,R3);
+
+[child_pcb + 11] = R5;                    //user area page
+[child_pcb + 12] = 0;                     //KPTR
+
+
+//setting per process resource table
+
+alias RESOURCE_TABLE_CHILD_ADDRESS R4;
+alias RESOURCE_TABLE_PARENT_ADDRESS R5;
+
+
+RESOURCE_TABLE_CHILD_ADDRESS =  ([child_pcb + 11]+1)*512-16;
+RESOURCE_TABLE_PARENT_ADDRESS = ([parent_pcb + 11]+1)*512-16;
+
+
+i = 0;
+while (i < 8) do
+   
+   [RESOURCE_TABLE_CHILD_ADDRESS + i*2 ] = [RESOURCE_TABLE_PARENT_ADDRESS + i*2];
+   [RESOURCE_TABLE_CHILD_ADDRESS + i*2 + 1] = [RESOURCE_TABLE_PARENT_ADDRESS + i*2 + 1];
+
+   if([RESOURCE_TABLE_PARENT_ADDRESS + i*2] == 1) then
+      
+       alias semID R6;
+       semID = [RESOURCE_TABLE_PARENT_ADDRESS + i*2 + 1];
+
+       [SEMAPHORE_TABLE + semID*4 + 1] = [SEMAPHORE_TABLE + semID*4 + 1 ] + 1;
+       
+   endif;
+  
+   i = i + 1;
+
+endwhile;
+
+
+//setting per disk map table 
+i = 2;
+    
+while(i < 10) do
+
+    [DISK_MAP_TABLE + child_pid*10 + i ] = [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + i ];
+    i = i + 1;
+
+endwhile;
+
+
+//setting page table 
+
+alias child_PTBR R4;
+child_PTBR = PAGE_TABLE_BASE + child_pid*20;
+
+//library
+[child_PTBR + 0] = 63;
+[child_PTBR + 1] = "0100";
+
+
+[child_PTBR + 2] = 64;
+[child_PTBR + 3] = "0100";
+
+
+//heap
+i = 4;
+while (i<=6) do
+
+     [child_PTBR + i] = [PTBR + i];
+     [child_PTBR + i + 1] = [PTBR + i + 1];
+
+     [MEMORY_FREE_LIST + [PTBR + i]] =  [MEMORY_FREE_LIST + [PTBR + i]] + 1;
+
+     i = i+2;
+
+endwhile;
+
+
+
+//code
+i = 8;
+while (i<= 14) do
+
+     //code page = 1
+     [child_PTBR + i] = [PTBR + i];
+     [child_PTBR + i + 1] = [PTBR + i +1];
+
+     if([PTBR + i] != -1) then
+
+          [MEMORY_FREE_LIST + [PTBR + i]] =  [MEMORY_FREE_LIST + [PTBR + i]] + 1;
+
+     endif;
+
+     i = i+2;
+
+endwhile;
+
+
+//stack page
+
+j = 16;
+
+while (j<=18) do
+
+     multipush(R0,R1,R2,R3,R4,R7);
+     R1 =1;
+     call MOD_2;
+     R5 = R0;
+     multipop(R0,R1,R2,R3,R4,R7);
+
+     [child_PTBR  + j] = R5;
+     [child_PTBR +  j+ 1] = "0110";
+
+     //copying memory 
+     alias parent_page_address R5;
+     alias child_page_address R6;
+
+     child_page_address = [child_PTBR + j]*512;
+     parent_page_address = [PTBR + j]*512;             
+
+     //not checking wheather stack page is valid or not
+
+     i = 0;
+
+     while (i < 512) do
+     
+          [child_page_address + i] = [parent_page_address + i];
+          i = i+1;
+
+     endwhile;
+
+     j = j+2;
+
+endwhile;
+
+
+
+[[child_pcb + 11]*512]  = BP;
+
+
+
+//setting_return values
+//child process  
+
+[[child_PTBR + 2*(user_SP -1)/512]*512 + (user_SP - 1)%512 ] = 0;
+
+//parent process
+[[PTBR + 2*(user_SP -1)/512]*512 + (user_SP - 1)%512 ] = child_pid;
+
+[child_pcb + 4] = CREATED;                      //state
+
+//mode change
+[parent_pcb + 9 ] = 0;
+SP = [parent_pcb + 13];
+
+breakpoint;
+ireturn;

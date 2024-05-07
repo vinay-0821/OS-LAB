@@ -1,0 +1,284 @@
+alias userSP R0;
+alias process_entry R1;
+
+userSP = SP;
+process_entry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+
+[process_entry + 13] = SP;
+SP = [process_entry+ 11]*512 - 1;
+
+
+alias syscall R2;
+syscall = [[PTBR + 2*(userSP - 5)/512]*512 + (userSP - 5)%512];
+
+//create file
+if(syscall == 1 ) then
+    
+  
+     //mode change 
+     [process_entry + 9] = 1;
+
+
+     alias file_name R3;
+     alias permission R4;
+
+     file_name = [[PTBR + 2*(userSP - 4)/512]*512 + (userSP - 4)%512];
+     permission = [[PTBR + 2*(userSP - 3)/512]*512 + (userSP - 3)%512];
+
+
+     alias index R5;
+     alias inode_entry R6;
+     alias root_entry R7;
+     alias user_id R8;
+     alias user_name R9;
+
+      //file name already exist check
+      
+     index = 0;
+     while(index<60) do
+       
+       inode_entry = INODE_TABLE + index*16;
+       if([inode_entry + 1] == file_name) then
+           
+           break;
+
+       endif;
+
+       index = index +1;
+
+    endwhile;
+
+
+    if(index != 60) then
+       
+       R10 = 0;
+       goto ret;
+
+
+    endif;
+
+
+     index = 0;
+
+     while(index<60) do
+       
+       inode_entry = INODE_TABLE + index*16;
+       if([inode_entry + 1] == -1) then
+           
+           break;
+
+       endif;
+
+       index = index +1;
+
+    endwhile;
+
+
+    if(index == 60) then
+       
+       R10 = -1;
+       goto ret;
+
+
+    endif;
+
+    user_id = [process_entry + 3];
+    user_name = [USER_TABLE + user_id*2];
+
+    inode_entry = INODE_TABLE + index*16;
+    root_entry = ROOT_FILE + index*8;
+
+    [inode_entry ] = 2;                 //file type
+    [inode_entry + 1] = file_name;      //file name
+    [inode_entry + 2] = 0;              //file size
+    [inode_entry + 3] = user_id;        //user_id
+    [inode_entry + 4] = permission;     //permission
+    [inode_entry + 8] = -1;
+    [inode_entry + 9] = -1;
+    [inode_entry + 10] = -1;
+    [inode_entry + 11] = -1;
+
+    [root_entry ] = file_name;
+    [root_entry + 1] = 0;
+    [root_entry + 2] = 2;
+    [root_entry + 3] = user_name;
+    [root_entry + 4] = permission;
+
+
+     R10 = 0;
+     goto ret;
+
+endif;
+
+
+
+//delete file 
+if(syscall == 4) then
+
+    //mode change 
+   [process_entry + 9] = 4;
+ 
+   alias file_name R3;
+
+   alias c_userid R4;
+   alias index R5;
+   alias inode_entry R6;
+   alias root_entry R7;
+
+   
+   file_name = [[PTBR + 2*(userSP - 4)/512]*512 + (userSP - 4)%512];
+   c_userid =  [process_entry + 3];
+
+    
+
+   index = 0;
+
+   while(index < 60) do
+       
+       inode_entry = INODE_TABLE + index*16;
+       if([inode_entry + 1] == file_name) then
+           break;        
+        endif;
+
+    index = index +1;
+    endwhile;
+
+   
+
+
+    //file not found
+    if(index == 60) then
+       
+       [process_entry + 9] = 0;
+       [[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = 0;
+       SP = [process_entry+ 13];
+       ireturn;
+
+    endif;
+
+    //permission denied
+    if([inode_entry + 4] == 0) then
+   
+    if((c_userid != 1 && [inode_entry + 3] != c_userid)) then
+         
+       [process_entry + 9] = 0;
+       [[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = -1;
+       SP = [process_entry + 13];
+       ireturn;
+       
+    endif;
+
+    endif;
+
+
+
+
+    //acquire inode
+    multipush(R0,R1,R2,R3,R4,R5,R6);
+    R1 = 4;                                
+    R2 = R5;
+    R3 = [SYSTEM_STATUS_TABLE + 1];
+    call MOD_0;
+    R10 = R0;
+    multipop(R0,R1,R2,R3,R4,R5,R6);
+
+
+
+    // file already deleted
+    if(R10 == -1) then
+        
+       R10 = 0;
+       goto ret;
+
+    endif;
+
+
+    //file is open
+    if([FILE_STATUS_TABLE + index*4 + 1] != -1) then
+       
+       //release lock
+        multipush(R0,R1);
+        R1 = 5;                                
+        R2 = R5;
+        R3 = [SYSTEM_STATUS_TABLE + 1];
+        call MOD_0;
+        multipop(R0,R1);
+
+       R10 = -2;
+       goto ret;
+       ireturn;
+
+    endif;
+    
+    //invaliding inode table and root
+    root_entry = ROOT_FILE + index*8;
+
+    alias  j R8;
+    j = 8;
+    while (j<11) do
+       
+       alias block_num R9;
+       block_num = [inode_entry + j];
+       if(block_num != -1) then
+          
+             alias buff_entry R8;
+             buff_entry = BUFFER_TABLE + (block_num%4)*4;
+             if([buff_entry] == [inode_entry + j]) then
+                 
+                 [buff_entry + 1] =0;
+
+              endif;
+
+          multipush(R0,R1,R2,R3,R4,R5,R6,R7,R8,R9);
+          R1 = 4;
+          R2 = R9;
+          R3 = [SYSTEM_STATUS_TABLE + 1];
+          call MOD_2;
+          multipop(R0,R1,R2,R3,R4,R5,R6,R7,R8,R9);
+        
+        endif;
+
+        j = j +1;
+
+    endwhile;
+
+
+    j = 0;
+    while (j < 16) do
+       
+       if(j<8) then
+
+          [root_entry + j] = -1;
+
+        endif;
+          
+       [inode_entry + j] = -1;
+       j = j+1;
+
+    endwhile;
+
+    [inode_entry + 2] = 0;
+    [root_entry + 1] =0;
+
+    //release lock
+    multipush(R0,R1);
+    R1 = 5;                                
+    R2 = R5;
+    R3 = [SYSTEM_STATUS_TABLE + 1];
+    call MOD_0;
+    multipop(R0,R1);
+
+
+    R10 = 0;
+    goto ret;
+
+
+endif;
+
+ret :
+[process_entry + 9] = 0;
+[[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = R10;
+SP = [process_entry + 13];
+
+ireturn;
+

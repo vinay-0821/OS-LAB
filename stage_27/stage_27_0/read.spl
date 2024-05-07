@@ -1,0 +1,53 @@
+//for systemcall  context is already saved in userstack
+//change mode
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 7;
+
+alias USER_SP R0;
+USER_SP = SP;
+
+//saving user stack
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13]= SP;
+SP= [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 -1;
+
+
+alias file_descriptor R1;
+
+file_descriptor = [[PTBR + 2*(USER_SP-4)/512]*512 + ((USER_SP-4)%512)];
+
+if(filedescriptor!= -1)  then
+
+   goto read_file;
+
+endif;
+
+multipush(R0,R1);
+R3 = [[PTBR + 2*(USER_SP-3)/512]*512 + ((USER_SP-3)%512)];
+R2 = [SYSTEM_STATUS_TABLE + 1];
+R1 = 4;
+
+call MOD_4;
+
+multipop(R0,R1);
+
+
+[[PTBR + 2*(USER_SP-1)/512]*512 + ((USER_SP-1)%512)] = 0;
+
+
+//change mode flag to 0
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
+ireturn;
+
+
+
+read_file :
+
+//file_descriptor -- R2
+alias process_entry R3;
+alias  RESOURCE_TABLE_ADDRESS R4;
+
+process_entry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+
+RESOURCE_TABLE_ADDRESS = ([process_entry + 11] + 1)*512 - 16;
+

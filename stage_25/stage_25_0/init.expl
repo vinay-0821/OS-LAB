@@ -1,0 +1,50 @@
+int main()
+{
+    decl
+        int t;
+        str file;
+        str msg;
+        str command;
+    enddecl
+
+    begin
+        
+        while(1==1) do
+           
+           t = exposcall("Write" , -2 , "COMMAND");
+           t = exposcall("Read" ,-1,command);
+           if(command == "Shutdown") then
+              
+              t = exposcall("Shutdown");
+
+           else
+              
+            t = exposcall("Fork");
+            if(t == 0) then
+                
+                break;
+
+            else if(t > 0) then
+               
+               t = exposcall("Wait",t);
+            
+            else if(t == -1) then
+               
+                t = exposcall("Write", -2 , "Ffailed");
+
+            endif;
+            endif;
+            endif;
+            endif;
+  
+ 
+
+        endwhile;
+
+        t = exposcall("Exec",command);
+        t = exposcall("Write", -2 , "BAD COMMAND");
+        return 0;
+
+            
+    end
+}
